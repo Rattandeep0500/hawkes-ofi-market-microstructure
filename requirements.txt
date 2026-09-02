@@ -7,3 +7,5 @@ jupyter
 statsmodels
 pytest
 pyarrow
+
+requests
