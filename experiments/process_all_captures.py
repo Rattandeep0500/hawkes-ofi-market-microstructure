@@ -6,8 +6,18 @@ import pandas as pd
 
 
 CAPTURE_FILES = [
-    Path("data/live/capture_02.jsonl"),
-    Path("data/live/capture_03.jsonl"),
+    (
+        "capture_02",
+        Path("data/live/capture_02.jsonl"),
+    ),
+    (
+        "capture_03",
+        Path("data/live/capture_03.jsonl"),
+    ),
+    (
+        "capture_04",
+        Path("data/live/capture_04.jsonl"),
+    ),
 ]
 
 OUTPUT_FILE = Path(
@@ -25,48 +35,103 @@ def load_capture(path):
         "r",
         encoding="utf-8",
     ) as file:
-        for line in file:
-            if not line.strip():
+        for line_number, line in enumerate(
+            file,
+            start=1,
+        ):
+            line = line.strip()
+
+            if not line:
                 continue
 
-            record = json.loads(line)
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise RuntimeError(
+                    f"{path}: invalid JSON on line "
+                    f"{line_number}: {error}"
+                ) from error
 
-            if record["type"] == "snapshot":
+            record_type = record.get(
+                "type"
+            )
+
+            if record_type == "snapshot":
+                if snapshot is not None:
+                    raise RuntimeError(
+                        f"{path}: multiple snapshots."
+                    )
+
                 snapshot = record["data"]
 
-            elif record["type"] == "depth":
+            elif record_type == "depth":
+                if "received_at_ms" not in record:
+                    raise RuntimeError(
+                        f"{path}: depth record on "
+                        f"line {line_number} is missing "
+                        "received_at_ms."
+                    )
+
                 depth_events.append(
                     (
-                        int(record["received_at_ms"]),
+                        int(
+                            record[
+                                "received_at_ms"
+                            ]
+                        ),
                         record["data"],
                     )
                 )
 
     if snapshot is None:
         raise RuntimeError(
-            f"No snapshot found in {path}"
+            f"No snapshot found in {path}."
         )
 
     if not depth_events:
         raise RuntimeError(
-            f"No depth events found in {path}"
+            f"No depth events found in {path}."
         )
 
-    return snapshot, depth_events
+    return (
+        snapshot,
+        depth_events,
+    )
 
 
 def initialize_book(snapshot):
-    bids = {
-        float(price): float(quantity)
-        for price, quantity in snapshot["bids"]
-        if float(quantity) > 0
-    }
+    if "bids" not in snapshot:
+        raise RuntimeError(
+            "Snapshot has no bids."
+        )
 
-    asks = {
-        float(price): float(quantity)
-        for price, quantity in snapshot["asks"]
-        if float(quantity) > 0
-    }
+    if "asks" not in snapshot:
+        raise RuntimeError(
+            "Snapshot has no asks."
+        )
+
+    bids = {}
+
+    for price, quantity in snapshot["bids"]:
+        price = float(price)
+        quantity = float(quantity)
+
+        if price > 0 and quantity > 0:
+            bids[price] = quantity
+
+    asks = {}
+
+    for price, quantity in snapshot["asks"]:
+        price = float(price)
+        quantity = float(quantity)
+
+        if price > 0 and quantity > 0:
+            asks[price] = quantity
+
+    if not bids or not asks:
+        raise RuntimeError(
+            "Snapshot contains an empty side."
+        )
 
     return bids, asks
 
@@ -76,13 +141,21 @@ def apply_depth_event(
     asks,
     event,
 ):
+    if "b" not in event or "a" not in event:
+        raise RuntimeError(
+            "Depth event missing bid/ask updates."
+        )
+
     for price, quantity in event["b"]:
         price = float(price)
         quantity = float(quantity)
 
         if quantity == 0:
-            bids.pop(price, None)
-        else:
+            bids.pop(
+                price,
+                None,
+            )
+        elif quantity > 0:
             bids[price] = quantity
 
     for price, quantity in event["a"]:
@@ -90,8 +163,11 @@ def apply_depth_event(
         quantity = float(quantity)
 
         if quantity == 0:
-            asks.pop(price, None)
-        else:
+            asks.pop(
+                price,
+                None,
+            )
+        elif quantity > 0:
             asks[price] = quantity
 
 
@@ -104,6 +180,14 @@ def build_states(
         snapshot
     )
 
+    snapshot_update_id = int(
+        snapshot["lastUpdateId"]
+    )
+
+    previous_update_id = (
+        snapshot_update_id
+    )
+
     rows = []
 
     for (
@@ -111,10 +195,36 @@ def build_states(
         event,
     ) in depth_events:
 
+        first_update_id = int(
+            event["U"]
+        )
+
+        final_update_id = int(
+            event["u"]
+        )
+
+        if final_update_id <= (
+            previous_update_id
+        ):
+            continue
+
+        if first_update_id > (
+            previous_update_id + 1
+        ):
+            raise RuntimeError(
+                f"{capture_id}: update-ID gap: "
+                f"previous={previous_update_id}, "
+                f"current_U={first_update_id}"
+            )
+
         apply_depth_event(
             bids,
             asks,
             event,
+        )
+
+        previous_update_id = (
+            final_update_id
         )
 
         if not bids or not asks:
@@ -138,14 +248,6 @@ def build_states(
         best_bid = bid_prices[0]
         best_ask = ask_prices[0]
 
-        bid_size_1 = bids[
-            best_bid
-        ]
-
-        ask_size_1 = asks[
-            best_ask
-        ]
-
         mid_price = (
             best_bid
             + best_ask
@@ -156,16 +258,24 @@ def build_states(
             - best_bid
         )
 
-        denominator = (
+        bid_size_1 = bids[
+            best_bid
+        ]
+
+        ask_size_1 = asks[
+            best_ask
+        ]
+
+        queue_denominator = (
             bid_size_1
             + ask_size_1
         )
 
-        if denominator > 0:
+        if queue_denominator > 0:
             queue_imbalance = (
                 bid_size_1
                 - ask_size_1
-            ) / denominator
+            ) / queue_denominator
         else:
             queue_imbalance = 0.0
 
@@ -175,11 +285,11 @@ def build_states(
             "event_time_ms": int(
                 event["E"]
             ),
-            "first_update_id": int(
-                event["U"]
+            "first_update_id": (
+                first_update_id
             ),
-            "final_update_id": int(
-                event["u"]
+            "final_update_id": (
+                final_update_id
             ),
             "best_bid": best_bid,
             "best_ask": best_ask,
@@ -195,39 +305,32 @@ def build_states(
             "queue_imbalance": queue_imbalance,
         }
 
-        for level in range(
-            LEVELS
-        ):
-            bid_price = (
-                bid_prices[level]
-            )
-
-            ask_price = (
-                ask_prices[level]
-            )
-
+        for level in range(LEVELS):
             row[
                 f"bid_price_{level + 1}"
-            ] = bid_price
+            ] = bid_prices[level]
 
             row[
                 f"bid_size_{level + 1}"
-            ] = bids[bid_price]
+            ] = bids[
+                bid_prices[level]
+            ]
 
             row[
                 f"ask_price_{level + 1}"
-            ] = ask_price
+            ] = ask_prices[level]
 
             row[
                 f"ask_size_{level + 1}"
-            ] = asks[ask_price]
+            ] = asks[
+                ask_prices[level]
+            ]
 
         rows.append(row)
 
     if not rows:
         raise RuntimeError(
-            f"No book states produced "
-            f"for {capture_id}"
+            f"{capture_id}: no book states created."
         )
 
     return pd.DataFrame(rows)
@@ -239,14 +342,30 @@ def validate_states(
 ):
     if states.empty:
         raise RuntimeError(
-            f"Empty state set: {capture_id}"
+            f"{capture_id}: empty states."
         )
 
-    if not states[
-        "mid_price"
-    ].gt(0).all():
+    required_numeric = [
+        "best_bid",
+        "best_ask",
+        "mid_price",
+        "spread",
+        "spread_bps",
+        "queue_imbalance",
+    ]
+
+    numeric = states[
+        required_numeric
+    ].to_numpy(
+        dtype=float
+    )
+
+    if not np.isfinite(
+        numeric
+    ).all():
         raise RuntimeError(
-            f"Invalid mid-price in {capture_id}"
+            f"{capture_id}: non-finite "
+            "book-state values."
         )
 
     if not (
@@ -254,21 +373,21 @@ def validate_states(
         < states["best_ask"]
     ).all():
         raise RuntimeError(
-            f"Crossed book detected in "
-            f"{capture_id}"
+            f"{capture_id}: crossed book."
         )
 
-    if not states[
-        "spread"
-    ].gt(0).all():
+    if not (
+        states["spread"] > 0
+    ).all():
         raise RuntimeError(
-            f"Non-positive spread in "
-            f"{capture_id}"
+            f"{capture_id}: non-positive spread."
         )
 
     update_ids = states[
         "final_update_id"
-    ].to_numpy()
+    ].to_numpy(
+        dtype=np.int64
+    )
 
     if len(update_ids) > 1:
         if (
@@ -276,12 +395,28 @@ def validate_states(
             <= update_ids[:-1]
         ).any():
             raise RuntimeError(
-                f"Update IDs not increasing "
-                f"in {capture_id}"
+                f"{capture_id}: update IDs "
+                "not strictly increasing."
+            )
+
+    timestamps = states[
+        "event_time_ms"
+    ].to_numpy(
+        dtype=np.int64
+    )
+
+    if len(timestamps) > 1:
+        if (
+            timestamps[1:]
+            < timestamps[:-1]
+        ).any():
+            raise RuntimeError(
+                f"{capture_id}: event times "
+                "not monotonic."
             )
 
 
-def add_ofi(
+def calculate_ofi(
     states,
 ):
     result = states.copy()
@@ -319,51 +454,94 @@ def add_ofi(
             dtype=float,
         )
 
-        for i in range(
-            1,
-            len(result),
-        ):
-            if (
-                bid_price[i]
-                > bid_price[i - 1]
-            ):
-                bid_component = (
-                    bid_size[i]
-                )
-            elif (
-                bid_price[i]
-                < bid_price[i - 1]
-            ):
-                bid_component = (
-                    -bid_size[i - 1]
-                )
-            else:
-                bid_component = (
-                    bid_size[i]
-                    - bid_size[i - 1]
-                )
+        if len(result) > 1:
+            bid_up = (
+                bid_price[1:]
+                > bid_price[:-1]
+            )
 
-            if (
-                ask_price[i]
-                < ask_price[i - 1]
-            ):
-                ask_component = (
-                    ask_size[i]
-                )
-            elif (
-                ask_price[i]
-                > ask_price[i - 1]
-            ):
-                ask_component = (
-                    -ask_size[i - 1]
-                )
-            else:
-                ask_component = (
-                    ask_size[i - 1]
-                    - ask_size[i]
-                )
+            bid_down = (
+                bid_price[1:]
+                < bid_price[:-1]
+            )
 
-            ofi[i] = (
+            bid_same = (
+                ~bid_up
+                & ~bid_down
+            )
+
+            bid_component = np.zeros(
+                len(result) - 1,
+                dtype=float,
+            )
+
+            bid_component[
+                bid_up
+            ] = bid_size[1:][
+                bid_up
+            ]
+
+            bid_component[
+                bid_down
+            ] = -bid_size[:-1][
+                bid_down
+            ]
+
+            bid_component[
+                bid_same
+            ] = (
+                bid_size[1:][
+                    bid_same
+                ]
+                - bid_size[:-1][
+                    bid_same
+                ]
+            )
+
+            ask_down = (
+                ask_price[1:]
+                < ask_price[:-1]
+            )
+
+            ask_up = (
+                ask_price[1:]
+                > ask_price[:-1]
+            )
+
+            ask_same = (
+                ~ask_down
+                & ~ask_up
+            )
+
+            ask_component = np.zeros(
+                len(result) - 1,
+                dtype=float,
+            )
+
+            ask_component[
+                ask_down
+            ] = ask_size[1:][
+                ask_down
+            ]
+
+            ask_component[
+                ask_up
+            ] = -ask_size[:-1][
+                ask_up
+            ]
+
+            ask_component[
+                ask_same
+            ] = (
+                ask_size[:-1][
+                    ask_same
+                ]
+                - ask_size[1:][
+                    ask_same
+                ]
+            )
+
+            ofi[1:] = (
                 bid_component
                 + ask_component
             )
@@ -394,13 +572,15 @@ def add_ofi(
         )
 
     result["ofi_multilevel"] = (
-        result[ofi_columns]
-        .sum(axis=1)
+        result[
+            ofi_columns
+        ].sum(axis=1)
     )
 
     result["depth_10"] = (
-        result[depth_columns]
-        .sum(axis=1)
+        result[
+            depth_columns
+        ].sum(axis=1)
     )
 
     result["ofi_normalized"] = np.where(
@@ -435,8 +615,8 @@ def add_ofi(
 
 
 def process_capture(
-    path,
     capture_id,
+    path,
 ):
     print(
         f"Processing {capture_id}..."
@@ -457,7 +637,7 @@ def process_capture(
         capture_id,
     )
 
-    states = add_ofi(
+    states = calculate_ofi(
         states
     )
 
@@ -471,28 +651,89 @@ def process_capture(
         f"{len(depth_events):,} depth events"
     )
 
+    print(
+        f"{capture_id}: "
+        f"snapshot ID="
+        f"{snapshot['lastUpdateId']:,}"
+    )
+
+    print(
+        f"{capture_id}: "
+        f"final update ID="
+        f"{states['final_update_id'].iloc[-1]:,}"
+    )
+
     return states
+
+
+def validate_combined(
+    combined,
+):
+    if combined.empty:
+        raise RuntimeError(
+            "Combined book-state dataset is empty."
+        )
+
+    capture_count = (
+        combined["capture_id"]
+        .nunique()
+    )
+
+    if capture_count != len(
+        CAPTURE_FILES
+    ):
+        raise RuntimeError(
+            "Not all expected captures "
+            "are present."
+        )
+
+    numeric_columns = (
+        combined
+        .select_dtypes(
+            include=np.number
+        )
+        .columns
+        .tolist()
+    )
+
+    if not np.isfinite(
+        combined[
+            numeric_columns
+        ].to_numpy(
+            dtype=float
+        )
+    ).all():
+        raise RuntimeError(
+            "Combined dataset contains "
+            "non-finite numeric values."
+        )
+
+    for capture_id, frame in (
+        combined.groupby(
+            "capture_id",
+            sort=False,
+        )
+    ):
+        validate_states(
+            frame,
+            capture_id,
+        )
 
 
 def main():
     parts = []
 
-    for index, path in enumerate(
-        CAPTURE_FILES,
-        start=2,
+    for capture_id, path in (
+        CAPTURE_FILES
     ):
         if not path.exists():
             raise FileNotFoundError(
-                f"Missing capture: {path}"
+                f"Missing capture file: {path}"
             )
 
-        capture_id = (
-            f"capture_{index:02d}"
-        )
-
         states = process_capture(
-            path,
             capture_id,
+            path,
         )
 
         parts.append(states)
@@ -500,16 +741,6 @@ def main():
     combined = pd.concat(
         parts,
         ignore_index=True,
-    )
-
-    combined["timestamp"] = (
-        pd.to_datetime(
-            combined[
-                "event_time_ms"
-            ],
-            unit="ms",
-            utc=True,
-        )
     )
 
     combined = combined.sort_values(
@@ -522,21 +753,34 @@ def main():
         drop=True
     )
 
-    numeric_columns = (
-        combined
-        .select_dtypes(
-            include=np.number
+    combined["timestamp"] = (
+        pd.to_datetime(
+            combined[
+                "event_time_ms"
+            ],
+            unit="ms",
+            utc=True,
         )
-        .columns
     )
 
-    if not np.isfinite(
-        combined[numeric_columns]
-        .to_numpy()
-    ).all():
-        raise RuntimeError(
-            "Non-finite values detected."
+    combined["relative_time_s"] = (
+        combined
+        .groupby(
+            "capture_id"
+        )[
+            "event_time_ms"
+        ]
+        .transform(
+            lambda x:
+                (
+                    x - x.iloc[0]
+                ) / 1000.0
         )
+    )
+
+    validate_combined(
+        combined
+    )
 
     OUTPUT_FILE.parent.mkdir(
         parents=True,
@@ -549,15 +793,10 @@ def main():
         index=False,
     )
 
-    print()
-    print(
-        "Combined capture summary:"
-    )
-
-    print(
-        combined.groupby(
-            "capture_id"
-        ).agg(
+    summary = (
+        combined
+        .groupby("capture_id")
+        .agg(
             states=(
                 "final_update_id",
                 "size",
@@ -578,21 +817,40 @@ def main():
                 "spread_bps",
                 "mean",
             ),
-            mean_qi=(
+            mean_queue_imbalance=(
                 "queue_imbalance",
                 "mean",
             ),
-            mean_ofi=(
+            mean_ofi_1=(
                 "ofi_1",
                 "mean",
             ),
-        ).to_string()
+            mean_ofi_multilevel=(
+                "ofi_multilevel",
+                "mean",
+            ),
+        )
     )
 
     print()
     print(
+        "Combined capture summary:"
+    )
+
+    print(
+        summary.to_string()
+    )
+
+    print()
+
+    print(
         f"Total book states: "
         f"{len(combined):,}"
+    )
+
+    print(
+        f"Captures: "
+        f"{combined['capture_id'].nunique()}"
     )
 
     print(

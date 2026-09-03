@@ -14,6 +14,10 @@ CAPTURE_FILES = [
         "capture_03",
         Path("data/live/capture_03.jsonl"),
     ),
+    (
+        "capture_04",
+        Path("data/live/capture_04.jsonl"),
+    ),
 ]
 
 OUTPUT_FILE = Path(
@@ -60,11 +64,11 @@ def load_capture(
 
             if not isinstance(event, dict):
                 raise RuntimeError(
-                    f"{capture_id}: invalid trade "
-                    f"data on line {line_number}"
+                    f"{capture_id}: invalid trade data "
+                    f"on line {line_number}"
                 )
 
-            required_fields = [
+            required = [
                 "e",
                 "E",
                 "s",
@@ -77,7 +81,7 @@ def load_capture(
 
             missing = [
                 field
-                for field in required_fields
+                for field in required
                 if field not in event
             ]
 
@@ -98,17 +102,33 @@ def load_capture(
             rows.append(
                 {
                     "capture_id": capture_id,
-                    "event_type": str(event["e"]),
-                    "symbol": str(event["s"]),
-                    "trade_id": int(event["t"]),
-                    "event_time_ms": int(event["E"]),
-                    "trade_time_ms": int(event["T"]),
+                    "event_type": str(
+                        event["e"]
+                    ),
+                    "symbol": str(
+                        event["s"]
+                    ),
+                    "trade_id": int(
+                        event["t"]
+                    ),
+                    "event_time_ms": int(
+                        event["E"]
+                    ),
+                    "trade_time_ms": int(
+                        event["T"]
+                    ),
                     "received_at_ms": int(
                         record["received_at_ms"]
                     ),
-                    "price": float(event["p"]),
-                    "quantity": float(event["q"]),
-                    "buyer_maker": bool(event["m"]),
+                    "price": float(
+                        event["p"]
+                    ),
+                    "quantity": float(
+                        event["q"]
+                    ),
+                    "buyer_maker": bool(
+                        event["m"]
+                    ),
                 }
             )
 
@@ -123,13 +143,15 @@ def load_capture(
 def classify_trades(trades):
     result = trades.copy()
 
-    result = result.sort_values(
-        [
-            "trade_time_ms",
-            "trade_id",
-        ]
-    ).reset_index(
-        drop=True
+    result = (
+        result
+        .sort_values(
+            [
+                "trade_time_ms",
+                "trade_id",
+            ]
+        )
+        .reset_index(drop=True)
     )
 
     result["side"] = np.where(
@@ -163,19 +185,17 @@ def classify_trades(trades):
         -result["notional"],
     )
 
-    first_time = result[
-        "trade_time_ms"
-    ].iloc[0]
+    first_trade_time = (
+        result["trade_time_ms"].iloc[0]
+    )
 
     result["relative_time_s"] = (
         result["trade_time_ms"]
-        - first_time
+        - first_trade_time
     ) / 1000.0
 
     result["interarrival_ms"] = (
-        result[
-            "trade_time_ms"
-        ].diff()
+        result["trade_time_ms"].diff()
     )
 
     result["same_timestamp"] = (
@@ -242,7 +262,7 @@ def validate_capture(
             "trade quantity detected."
         )
 
-    valid_numeric_columns = [
+    required_numeric = [
         "trade_id",
         "event_time_ms",
         "trade_time_ms",
@@ -255,18 +275,18 @@ def validate_capture(
         "signed_notional",
     ]
 
-    values = trades[
-        valid_numeric_columns
+    numeric_values = trades[
+        required_numeric
     ].to_numpy(
         dtype=float
     )
 
     if not np.isfinite(
-        values
+        numeric_values
     ).all():
         raise RuntimeError(
             f"{capture_id}: non-finite values "
-            "detected in required fields."
+            "in required fields."
         )
 
     first_interarrival = trades[
@@ -282,26 +302,26 @@ def validate_capture(
         )
 
     if len(trades) > 1:
-        interarrivals = trades[
+        later_interarrivals = trades[
             "interarrival_ms"
         ].iloc[1:].to_numpy(
             dtype=float
         )
 
         if not np.isfinite(
-            interarrivals
+            later_interarrivals
         ).all():
             raise RuntimeError(
                 f"{capture_id}: invalid "
-                "interarrival values detected."
+                "interarrival values."
             )
 
         if (
-            interarrivals < 0
+            later_interarrivals < 0
         ).any():
             raise RuntimeError(
                 f"{capture_id}: negative "
-                "interarrival time detected."
+                "interarrival times."
             )
 
 
@@ -322,13 +342,10 @@ def summarize_capture(
         ).sum()
     )
 
-    duration = (
+    duration = float(
         trades[
             "relative_time_s"
         ].iloc[-1]
-        - trades[
-            "relative_time_s"
-        ].iloc[0]
     )
 
     unique_timestamps = int(
@@ -337,29 +354,25 @@ def summarize_capture(
         ].nunique()
     )
 
-    events_with_ties = int(
+    tied_events = int(
         trades[
             "same_timestamp"
         ].sum()
     )
 
-    positive_interarrivals = (
-        trades[
-            "interarrival_ms"
-        ]
-        .iloc[1:]
-        .to_numpy(
-            dtype=float
-        )
+    interarrivals = trades[
+        "interarrival_ms"
+    ].iloc[1:].to_numpy(
+        dtype=float
     )
 
     positive_interarrivals = (
-        positive_interarrivals[
-            positive_interarrivals > 0
+        interarrivals[
+            interarrivals > 0
         ]
     )
 
-    summary = {
+    return {
         "capture_id": trades[
             "capture_id"
         ].iloc[0],
@@ -376,10 +389,10 @@ def summarize_capture(
             unique_timestamps
         ),
         "events_sharing_timestamp": (
-            events_with_ties
+            tied_events
         ),
         "timestamp_tie_fraction": (
-            events_with_ties / total
+            tied_events / total
         ),
         "duration_seconds": duration,
         "event_rate_per_second": (
@@ -391,51 +404,59 @@ def summarize_capture(
         "sell_rate_per_second": (
             sell_count / duration
         ),
-        "total_quantity": trades[
-            "quantity"
-        ].sum(),
-        "buy_quantity": trades.loc[
-            trades["side"] == "buy",
-            "quantity",
-        ].sum(),
-        "sell_quantity": trades.loc[
-            trades["side"] == "sell",
-            "quantity",
-        ].sum(),
-        "signed_quantity": trades[
-            "signed_quantity"
-        ].sum(),
-        "total_notional": trades[
-            "notional"
-        ].sum(),
-        "buy_notional": trades.loc[
-            trades["side"] == "buy",
-            "notional",
-        ].sum(),
-        "sell_notional": trades.loc[
-            trades["side"] == "sell",
-            "notional",
-        ].sum(),
-        "signed_notional": trades[
-            "signed_notional"
-        ].sum(),
-        "mean_trade_quantity": trades[
-            "quantity"
-        ].mean(),
-        "median_trade_quantity": trades[
-            "quantity"
-        ].median(),
-        "mean_interarrival_ms": (
-            trades[
-                "interarrival_ms"
-            ].iloc[1:].mean()
+        "total_quantity": float(
+            trades["quantity"].sum()
         ),
-        "median_interarrival_ms": (
-            trades[
-                "interarrival_ms"
-            ].iloc[1:].median()
+        "buy_quantity": float(
+            trades.loc[
+                trades["side"] == "buy",
+                "quantity",
+            ].sum()
         ),
-        "positive_interarrival_count": (
+        "sell_quantity": float(
+            trades.loc[
+                trades["side"] == "sell",
+                "quantity",
+            ].sum()
+        ),
+        "signed_quantity": float(
+            trades[
+                "signed_quantity"
+            ].sum()
+        ),
+        "total_notional": float(
+            trades["notional"].sum()
+        ),
+        "buy_notional": float(
+            trades.loc[
+                trades["side"] == "buy",
+                "notional",
+            ].sum()
+        ),
+        "sell_notional": float(
+            trades.loc[
+                trades["side"] == "sell",
+                "notional",
+            ].sum()
+        ),
+        "signed_notional": float(
+            trades[
+                "signed_notional"
+            ].sum()
+        ),
+        "mean_trade_quantity": float(
+            trades["quantity"].mean()
+        ),
+        "median_trade_quantity": float(
+            trades["quantity"].median()
+        ),
+        "mean_interarrival_ms": float(
+            interarrivals.mean()
+        ),
+        "median_interarrival_ms": float(
+            np.median(interarrivals)
+        ),
+        "positive_interarrival_count": int(
             len(positive_interarrivals)
         ),
         "start_time": pd.to_datetime(
@@ -454,8 +475,6 @@ def summarize_capture(
         ),
     }
 
-    return summary
-
 
 def validate_combined(
     trades,
@@ -465,17 +484,18 @@ def validate_combined(
             "Combined trade dataset is empty."
         )
 
-    duplicate_pairs = trades.duplicated(
-        subset=[
-            "capture_id",
-            "trade_id",
+    if (
+        trades[
+            [
+                "capture_id",
+                "trade_id",
+            ]
         ]
-    )
-
-    if duplicate_pairs.any():
+        .duplicated()
+        .any()
+    ):
         raise RuntimeError(
-            "Duplicate capture_id/trade_id "
-            "pairs detected."
+            "Duplicate capture/trade ID pairs."
         )
 
     for capture_id, frame in trades.groupby(
@@ -556,18 +576,20 @@ def main():
         combined
     )
 
-    summaries = pd.DataFrame(
-        summaries
+    combined = (
+        combined
+        .sort_values(
+            [
+                "capture_id",
+                "trade_time_ms",
+                "trade_id",
+            ]
+        )
+        .reset_index(drop=True)
     )
 
-    combined = combined.sort_values(
-        [
-            "capture_id",
-            "trade_time_ms",
-            "trade_id",
-        ]
-    ).reset_index(
-        drop=True
+    summary = pd.DataFrame(
+        summaries
     )
 
     OUTPUT_FILE.parent.mkdir(
@@ -586,7 +608,7 @@ def main():
     )
 
     print(
-        summaries[
+        summary[
             [
                 "capture_id",
                 "trade_count",
