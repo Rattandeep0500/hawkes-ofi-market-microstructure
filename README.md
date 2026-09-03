@@ -1,4 +1,4 @@
-[README_hawkes_ofi_market_microstructure_final.md](https://github.com/user-attachments/files/31768233/README_hawkes_ofi_market_microstructure_final.md)
+
 # Hawkes–OFI Market Microstructure
 
 <p align="center">
