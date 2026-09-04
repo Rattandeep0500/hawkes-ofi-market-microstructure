@@ -2,16 +2,16 @@
 # Hawkes–OFI Market Microstructure
 
 <p align="center">
-  <strong>BTCUSDT market microstructure research with Hawkes processes, order-flow imbalance, and strict cross-capture validation.</strong>
+  <strong>BTCUSDT market-microstructure research using Hawkes processes, order-flow imbalance, and strict cross-capture out-of-sample validation.</strong>
 </p>
 
 <p align="center">
   <a href="#overview">Overview</a> ·
   <a href="#research-question">Research Question</a> ·
+  <a href="#data">Data</a> ·
   <a href="#methodology">Methodology</a> ·
   <a href="#results">Results</a> ·
-  <a href="#reproducibility">Reproducibility</a> ·
-  <a href="#repository-structure">Repository</a>
+  <a href="#reproducibility">Reproducibility</a>
 </p>
 
 <p align="center">
@@ -21,121 +21,161 @@
   <img src="https://img.shields.io/badge/Exchange-Binance-003087" alt="Binance">
   <img src="https://img.shields.io/badge/Model-Bivariate%20Hawkes-6f42c1" alt="Bivariate Hawkes">
   <img src="https://img.shields.io/badge/Validation-Leave--One--Capture--Out-2ea44f" alt="Leave-One-Capture-Out">
-  <img src="https://img.shields.io/badge/Replication-Python%20%2B%20MATLAB-0f766e" alt="Python MATLAB replication">
+  <img src="https://img.shields.io/badge/Replication-Python%20%2B%20MATLAB-0f766e" alt="Python and MATLAB replication">
 </p>
 
 ---
 
 ## Overview
 
-This project studies whether the **temporal clustering of buy- and sell-side trade arrivals** contains predictive information about short-horizon BTCUSDT mid-price returns beyond a conventional **Order-Flow Imbalance (OFI)** benchmark.
+This repository contains a reproducible market-microstructure study of BTCUSDT trade-arrival dynamics.
 
-The central signal is derived from a bivariate Hawkes process:
+The project asks whether the **temporal clustering of buy- and sell-side trade arrivals** contains predictive information about short-horizon BTCUSDT mid-price returns beyond a conventional **Order-Flow Imbalance (OFI)** benchmark.
 
-$$
-H_t = \lambda_{B,t} - \lambda_{S,t}
-$$
+The central research signal is:
 
-where:
+```text
+Hawkes pressure
+    = conditional buy-arrival intensity
+    - conditional sell-arrival intensity
+```
 
-- $\lambda_{B,t}$ is the conditional buy-arrival intensity;
-- $\lambda_{S,t}$ is the conditional sell-arrival intensity;
-- positive $H_t$ indicates relatively stronger conditional buy pressure;
-- negative $H_t$ indicates relatively stronger conditional sell pressure.
+Positive Hawkes pressure means the conditional buy intensity is greater than the conditional sell intensity. Negative pressure means the reverse.
 
-The project is designed as a reproducible market-microstructure experiment. It combines live market capture, deterministic order-book reconstruction, point-process estimation, out-of-sample validation, bootstrap analysis, temporal-resolution sensitivity, and an independent MATLAB implementation.
+The project is designed around a complete empirical chain:
+
+```text
+raw Binance market data
+        ↓
+capture validation
+        ↓
+order-book reconstruction
+        ↓
+trade-side classification
+        ↓
+100-ms temporal alignment
+        ↓
+OFI benchmark + Hawkes estimation
+        ↓
+Hawkes pressure
+        ↓
+1 s / 5 s return prediction
+        ↓
+cross-capture validation
+        ↓
+bootstrap / sensitivity analysis
+        ↓
+Python ↔ MATLAB replication
+```
 
 ---
 
-## Research Question
+# Research Question
 
-### Primary question
+> Does explicitly modeling the temporal clustering of buy- and sell-side trade arrivals provide predictive information about short-horizon BTCUSDT returns beyond a simple L1 OFI benchmark?
 
-> Does explicitly modeling the temporal clustering of trades with a Hawkes process provide predictive information about short-horizon BTCUSDT returns beyond a simple L1 OFI benchmark?
+The project also examines:
 
-### Secondary questions
-
-- Are trade arrivals adequately described by a Poisson process?
-- How strong is buy- and sell-side self-excitation?
-- Does Hawkes pressure map into future price returns?
-- Does the signal generalize to an entirely held-out market capture?
-- Does adding OFI materially improve Hawkes pressure?
-- How sensitive is the result to temporal resolution?
-- Can the core estimator be independently reproduced in MATLAB?
+- whether trade arrivals are consistent with a Poisson process;
+- the strength of buy- and sell-side excitation;
+- whether Hawkes pressure maps into future returns;
+- whether the signal generalizes to an entirely held-out capture;
+- whether OFI adds information beyond Hawkes pressure;
+- how temporal resolution changes the result;
+- whether the Hawkes estimator can be reproduced independently.
 
 ---
 
-## Research Status
+# Research Status
 
 | Component | Status |
 |---|---|
-| Live market capture | ✅ Complete |
-| Snapshot/depth synchronization | ✅ Complete |
+| Live BTCUSDT capture | ✅ Complete |
+| Snapshot validation | ✅ Complete |
+| Depth sequence validation | ✅ Complete |
 | Trade validation | ✅ Complete |
+| Reception timestamp validation | ✅ Complete |
 | Order-book reconstruction | ✅ Complete |
-| L1 / multi-level OFI | ✅ Complete |
+| L1 OFI | ✅ Complete |
+| Multi-level OFI | ✅ Complete |
+| Depth-weighted OFI | ✅ Complete |
 | Poisson benchmark | ✅ Complete |
 | Bivariate Hawkes estimation | ✅ Complete |
-| Walk-forward validation | ✅ Complete |
-| Cross-capture validation | ✅ Complete |
+| Hawkes pressure | ✅ Complete |
+| Walk-forward analysis | ✅ Complete |
+| Cross-capture analysis | ✅ Complete |
 | Leave-one-capture-out validation | ✅ Complete |
+| Paired prediction-error comparison | ✅ Complete |
 | Block-bootstrap analysis | ✅ Complete |
 | State-conditioned analysis | ✅ Complete |
-| Resolution sensitivity | ✅ Complete |
+| Temporal-resolution sensitivity | ✅ Complete |
 | Python implementation | ✅ Complete |
-| MATLAB replication | ✅ Complete |
-| Exact-grid Python/MATLAB check | ✅ Complete |
-| Publication figures | ✅ Complete |
-| Consolidated result tables | ✅ Complete |
-| Expanded independent capture study | ⏳ Future work |
-| Economic execution / transaction-cost study | ⏳ Future work |
+| MATLAB implementation | ✅ Complete |
+| Exact-grid Python/MATLAB verification | ✅ Complete |
+| Final figures | ✅ Complete |
+| Final result tables | ✅ Complete |
+| Larger independent-capture study | ⏳ Future work |
+| Execution / transaction-cost model | ⏳ Future work |
 
 ---
 
-## Dataset
+# Data
 
-The current dataset contains three independently captured BTCUSDT episodes of approximately ten minutes each.
+The current dataset contains three independently captured BTCUSDT market episodes of approximately ten minutes each.
 
 | Capture | Duration | Trades | Buys | Sells | Book states |
 |---|---:|---:|---:|---:|---:|
-| `capture_02` | ~600 s | 13,117 | 8,182 | 4,935 | 6,000 |
+| `capture_02` | ~599 s | 13,117 | 8,182 | 4,935 | 6,000 |
 | `capture_03` | ~600 s | 18,595 | 8,925 | 9,670 | 6,002 |
 | `capture_04` | ~600 s | 7,730 | 4,845 | 2,885 | 6,000 |
 | **Total** | **~1,800 s** | **39,442** | **21,952** | **17,490** | **18,002** |
 
 ### Trade composition
 
-| Capture | Trade rate / s | Buy fraction | Sell fraction |
+| Capture | Trades / second | Buy fraction | Sell fraction |
 |---|---:|---:|---:|
 | `capture_02` | 21.89 | 62.38% | 37.62% |
 | `capture_03` | 31.01 | 47.99% | 52.00% |
 | `capture_04` | 12.89 | 62.68% | 37.32% |
 
-The captures are deliberately heterogeneous. The primary validation therefore treats each capture as an independent episode rather than randomly splitting adjacent observations.
+The captures intentionally differ in activity and trade-side composition. That heterogeneity is useful for the capture-level generalization test.
 
 ---
 
-## Research Pipeline
+# Live Capture Validation
 
-```mermaid
-flowchart LR
-    A[Binance trades] --> C[Trade validation]
-    B[Binance depth] --> D[Snapshot + sequence validation]
-    D --> E[Order-book reconstruction]
-    C --> F[Trade-side classification]
-    E --> G[100 ms aligned grid]
-    F --> G
-    G --> H[OFI features]
-    G --> I[Poisson benchmark]
-    G --> J[Bivariate Hawkes]
-    J --> K[Hawkes pressure]
-    H --> L[1 s / 5 s prediction]
-    K --> L
-    L --> M[Walk-forward]
-    L --> N[Leave-one-capture-out]
-    L --> O[Block bootstrap]
-    L --> P[Resolution sensitivity]
-    J --> Q[Python ↔ MATLAB replication]
+Each capture contains:
+
+- Binance trade events;
+- Binance depth events;
+- an exchange order-book snapshot.
+
+The validation pipeline checks:
+
+```text
+snapshot integrity
+       ↓
+depth sequence continuity
+       ↓
+update-ID consistency
+       ↓
+trade-record validity
+       ↓
+reception timestamps
+```
+
+The fourth live capture was independently collected and validated before being added to the final multi-capture dataset.
+
+### Capture 04 validation
+
+```text
+Depth events:      6,000
+Trade events:      7,730
+Snapshot:          OK
+Depth sequence:    OK
+Trades:            OK
+Timestamps:        OK
+Validation:        PASSED
 ```
 
 ---
@@ -144,17 +184,22 @@ flowchart LR
 
 ## 1. Order-book reconstruction
 
-Each capture begins with an exchange order-book snapshot followed by sequential depth updates.
+Each capture starts with an exchange-provided snapshot followed by sequential depth updates.
 
-The reconstruction pipeline validates:
+The reconstructed state contains variables used to compute:
 
-- snapshot integrity;
-- depth sequence continuity;
-- final update identifiers;
-- trade records;
-- reception timestamps.
+- mid-price;
+- spread;
+- queue imbalance;
+- L1 OFI;
+- multi-level OFI;
+- depth-weighted OFI.
 
-The resulting state series is aligned to a common 100 ms research grid.
+The final combined reconstructed book data are stored in:
+
+```text
+data/processed/all_capture_book_states.parquet
+```
 
 ---
 
@@ -162,373 +207,444 @@ The resulting state series is aligned to a common 100 ms research grid.
 
 Trade events are separated into buy- and sell-side arrivals using the exchange trade-stream maker indicator under the convention used throughout the project.
 
-For each capture, trade counts are aggregated into the same 100 ms grid used by the reconstructed book states.
+The classification rule is held fixed across captures.
 
 ---
 
-## 3. Order-Flow Imbalance
+## 3. Temporal alignment
 
-L1 OFI is the primary benchmark.
+The main Hawkes estimation uses a **100-ms research grid**.
 
-Additional model-development variants include:
-
-- L10 OFI;
-- normalized OFI;
-- depth-weighted OFI;
-- OFI + Hawkes combinations.
-
-The primary comparison is intentionally simple:
-
-$$
-\text{L1 OFI}
-\quad\text{vs}\quad
-\text{Hawkes pressure}.
-$$
-
----
-
-## 4. Bivariate Hawkes model
-
-The primary point-process model uses same-side exponential self-excitation:
-
-$$
-\lambda_B(t)
-=
-\mu_B
-+
-\alpha_B
-\int_0^t
-e^{-\beta(t-s)}
-\,dN_B(s)
-$$
-
-and
-
-$$
-\lambda_S(t)
-=
-\mu_S
-+
-\alpha_S
-\int_0^t
-e^{-\beta(t-s)}
-\,dN_S(s).
-$$
-
-The branching ratios are
-
-$$
-n_B=\frac{\alpha_B}{\beta},
-\qquad
-n_S=\frac{\alpha_S}{\beta}.
-$$
-
-Because the primary specification uses a diagonal excitation matrix, the spectral radius is
-
-$$
-\rho=\max(n_B,n_S).
-$$
-
-All fitted captures satisfy $\rho<1$.
-
----
-
-## 5. Hawkes pressure
-
-The research signal is
-
-$$
-H_t=\lambda_{B,t}-\lambda_{S,t}.
-$$
-
-It converts the two conditional event intensities into one signed pressure statistic.
-
----
-
-## 6. Binned likelihood
-
-The 100 ms event stream is represented as buy and sell counts per bin.
-
-For the exponential kernel,
-
-$$
-d=e^{-\beta\Delta t}.
-$$
-
-The expected event count in a bin is represented by the corresponding decayed historical state and the baseline intensity. Parameters are obtained by numerical maximum likelihood subject to the stationarity constraint.
-
----
-
-## 7. Forecast target
-
-For prediction horizon $h$:
-
-$$
-r_{t,t+h}
-=
-\log P_{t+h}
--
-\log P_t.
-$$
-
-The main horizons are:
-
-- $h=1$ second;
-- $h=5$ seconds.
-
----
-
-# Validation Design
-
-The strongest validation is **leave-one-capture-out**.
+The implementation distinguishes between:
 
 ```text
-capture_02 + capture_03  →  capture_04
-capture_02 + capture_04  →  capture_03
-capture_03 + capture_04  →  capture_02
+Conceptual model:
+continuous-time Hawkes process
+
+Actual estimator:
+100-ms binned count likelihood
 ```
 
-The held-out capture is excluded from model fitting.
-
-This is stricter than randomly splitting adjacent observations because high-frequency market data are strongly serially dependent.
+The final Python and MATLAB estimators use the same exact grid convention.
 
 ---
 
-# Results
+# Hawkes Model
 
-## 1. Trade-arrival clustering
+## Bivariate same-side specification
 
-For a Poisson process:
+The primary model contains two self-exciting event streams:
 
-$$
-\operatorname{Var}(N)=E[N]
-$$
+```text
+Buy events  → excite future buy events
 
-and therefore the Fano factor is
+Sell events → excite future sell events
+```
 
-$$
-F=
-\frac{\operatorname{Var}(N)}
-{E[N]}
-=1.
-$$
+The model does **not** include buy-to-sell or sell-to-buy cross-excitation in the primary specification.
 
-For the pooled one-second trade counts:
+The conditional intensities are conceptually:
 
-$$
-E[N]=21.91
-$$
+```text
+lambda_buy
+    = buy baseline
+    + historical buy excitation
 
-$$
-\operatorname{Var}(N)=4049.85
-$$
+lambda_sell
+    = sell baseline
+    + historical sell excitation
+```
 
-giving:
+The exponential kernel uses a common decay parameter.
 
-$$
-\boxed{F=184.82}
-$$
+---
+
+## Branching ratios
+
+The integrated excitation is summarized by:
+
+```text
+buy branching ratio  = alpha_buy / beta
+sell branching ratio = alpha_sell / beta
+```
+
+For the diagonal excitation matrix used in this project:
+
+```text
+spectral radius
+    = max(buy branching ratio,
+          sell branching ratio)
+```
+
+A fitted process is stationary when the spectral radius is below one.
+
+All three final captures satisfy this condition.
+
+---
+
+## Hawkes pressure
+
+The research signal is:
+
+```text
+Hawkes pressure
+    = lambda_buy - lambda_sell
+```
+
+Interpretation:
+
+```text
+Hawkes pressure > 0
+    → relatively stronger conditional buy activity
+
+Hawkes pressure < 0
+    → relatively stronger conditional sell activity
+```
+
+This is intentionally distinct from OFI.
+
+```text
+OFI
+    = order-book / displayed-flow imbalance
+
+Hawkes pressure
+    = conditional trade-arrival intensity imbalance
+```
+
+---
+
+# Poisson Benchmark
+
+A Poisson event-count process has:
+
+```text
+variance = mean
+```
+
+and therefore:
+
+```text
+Fano factor = variance / mean = 1
+```
+
+The pooled one-second BTCUSDT trade counts produce:
+
+```text
+Mean:       21.912222
+Variance:   4049.847766
+Fano:       184.821408
+```
 
 Capture-level Fano factors:
 
 | Capture | Fano factor |
 |---|---:|
-| `capture_02` | 227.87 |
-| `capture_03` | 176.38 |
-| `capture_04` | 120.37 |
-| **Pooled** | **184.82** |
+| `capture_02` | 227.871 |
+| `capture_03` | 176.382 |
+| `capture_04` | 120.373 |
+| **Pooled** | **184.821** |
 
-This provides strong evidence that the observed trade-arrival process is substantially more dispersed than the Poisson benchmark.
+The observed process is therefore dramatically more dispersed than the Poisson benchmark.
 
-> Overdispersion motivates a history-dependent point-process model, but it does not by itself establish that Hawkes is the unique or optimal model.
+This motivates a history-dependent point-process model.
+
+It does **not** by itself prove that Hawkes is the unique or optimal model.
 
 ---
 
-## 2. Hawkes parameter estimates
+# Final Hawkes Estimates
 
-| Capture | $\mu_B$ | $\mu_S$ | $\beta$ | $n_B$ | $n_S$ | $\rho$ |
+| Capture | Buy baseline | Sell baseline | Decay | Buy branching | Sell branching | Spectral radius |
 |---|---:|---:|---:|---:|---:|---:|
-| `capture_02` | 7.538 | 7.074 | 5.175 | 0.447 | 0.140 | 0.447 |
-| `capture_03` | 6.138 | 10.575 | 3.057 | 0.587 | 0.344 | 0.587 |
-| `capture_04` | 3.374 | 2.820 | 1.032 | 0.582 | 0.417 | 0.582 |
+| `capture_02` | 7.538247 | 7.074440 | 5.174913 | 0.447026 | 0.139642 | 0.447026 |
+| `capture_03` | 6.138138 | 10.574907 | 3.057319 | 0.587241 | 0.343635 | 0.587241 |
+| `capture_04` | 3.374296 | 2.820131 | 1.031680 | 0.582087 | 0.416523 | 0.582087 |
 
-The fitted processes are stationary under the primary specification.
+Negative log-likelihoods:
 
-The parameters also vary substantially across captures, which is consistent with changing market activity and trade-side composition.
+| Capture | Negative log-likelihood |
+|---|---:|
+| `capture_02` | 50,709.89 |
+| `capture_03` | 63,004.05 |
+| `capture_04` | 28,784.48 |
+
+The fitted processes are stationary while showing meaningful episode-level self-excitation.
 
 ---
 
-## 3. Primary OOS model comparison
+# Primary Validation
 
-### Mean leave-one-capture-out $R^2$
+The primary generalization test is **leave-one-capture-out validation**.
+
+```text
+Train: capture_02 + capture_03
+Test:  capture_04
+
+Train: capture_02 + capture_04
+Test:  capture_03
+
+Train: capture_03 + capture_04
+Test:  capture_02
+```
+
+Each held-out capture is excluded from model fitting.
+
+This avoids the strongest leakage problem associated with randomly splitting adjacent high-frequency observations.
+
+Primary forecast horizons:
+
+```text
+1 second
+5 seconds
+```
+
+Primary comparison:
+
+```text
+L1 OFI
+vs
+Hawkes pressure
+```
+
+Additional comparison:
+
+```text
+OFI + Hawkes
+```
+
+---
+
+# Results
+
+## Mean leave-one-capture-out OOS R²
 
 | Horizon | L1 OFI | Hawkes pressure | OFI + Hawkes |
 |---|---:|---:|---:|
-| **1 s** | -0.19% | **1.12%** | 1.03% |
-| **5 s** | 0.01% | **1.62%** | 1.54% |
+| **1 s** | **-0.190%** | **1.121%** | **1.027%** |
+| **5 s** | **0.007%** | **1.622%** | **1.540%** |
 
-### Mean prediction / return correlation
+## Mean prediction / return correlation
 
 | Horizon | L1 OFI | Hawkes pressure | OFI + Hawkes |
 |---|---:|---:|---:|
 | **1 s** | 0.060 | **0.122** | 0.121 |
 | **5 s** | 0.060 | **0.161** | 0.159 |
 
-The Hawkes-pressure model is positive in every held-out capture at both forecast horizons.
+### Main result
 
-The effect is statistically modest in absolute terms, but the direction is consistent across the three independent held-out episodes.
+Hawkes pressure produces positive average out-of-sample explanatory power at both horizons and exceeds the simple L1 OFI benchmark in the current three-capture experiment.
 
----
-
-## 4. Hawkes pressure and future returns
-
-Within each capture, Hawkes pressure is standardized and observations are ranked into pressure deciles.
-
-The pooled five-second response is approximately:
-
-| Pressure decile | Mean future return |
-|---|---:|
-| Lowest | **-0.31 bps** |
-| Highest | **+0.37 bps** |
-
-The low-to-high difference is approximately:
-
-$$
-\boxed{0.68\text{ bps}}
-$$
-
-The response is therefore directionally consistent with the interpretation of Hawkes pressure as signed conditional order-flow pressure.
+The effect is **modest but consistently positive across the three held-out captures**.
 
 ---
 
-## 5. Temporal-resolution sensitivity
+# Capture-Level Generalization
 
-### 1-second horizon
+The final Hawkes OOS results are:
 
-| Resolution | OOS $R^2$ | Correlation |
+| Training captures | Held-out capture | 1 s | 5 s |
+|---|---|---:|---:|
+| `02 + 03` | `04` | 1.270% | 2.310% |
+| `02 + 04` | `03` | 1.790% | 2.492% |
+| `03 + 04` | `02` | 0.304% | 0.063% |
+
+The effect is positive in every held-out capture, but its magnitude varies considerably.
+
+This heterogeneity is important and is discussed explicitly rather than averaged away.
+
+---
+
+# Hawkes Pressure / Future Returns
+
+Pressure is standardized within capture and observations are ranked into pressure deciles.
+
+The pooled five-second response shows:
+
+```text
+Lowest pressure decile:
+≈ -0.31 bps
+
+Highest pressure decile:
+≈ +0.37 bps
+```
+
+Low-to-high difference:
+
+```text
+≈ 0.68 bps
+```
+
+This is a small short-horizon effect.
+
+It should be interpreted as evidence of directional predictive information, not as a guarantee of trading profitability.
+
+---
+
+# Temporal-Resolution Sensitivity
+
+The project evaluates:
+
+```text
+50 ms
+100 ms
+250 ms
+500 ms
+```
+
+## 1-second horizon
+
+| Resolution | OOS R² | Correlation |
 |---|---:|---:|
 | 50 ms | **4.71%** | **0.226** |
 | 100 ms | 3.38% | 0.143 |
 | 250 ms | 2.45% | 0.101 |
 | 500 ms | 1.79% | 0.074 |
 
-### 5-second horizon
+## 5-second horizon
 
-| Resolution | OOS $R^2$ | Correlation |
+| Resolution | OOS R² | Correlation |
 |---|---:|---:|
 | 50 ms | 2.24% | 0.125 |
 | 100 ms | 6.49% | 0.160 |
 | 250 ms | **6.54%** | 0.138 |
 | 500 ms | 6.25% | 0.128 |
 
-The sensitivity is horizon-dependent: finer resolution is more valuable for the one-second horizon, while the five-second result is relatively stable from 100–500 ms.
+Interpretation:
+
+- finer resolution is associated with stronger performance at the one-second horizon;
+- five-second performance is comparatively stable across 100–500 ms;
+- these results are sensitivity analysis, not a universal optimum.
 
 ---
 
-## 6. Statistical comparison
+# Statistical Comparison
 
-Paired prediction errors are evaluated on the same held-out observations.
+The paired comparison uses the same held-out observations for both models.
 
-The average OOS $R^2$ improvement of Hawkes pressure over L1 OFI is:
+Average Hawkes improvement in OOS R² over L1 OFI:
 
-$$
-\Delta R^2_{1s}
-\approx
-1.31
-\text{ percentage points}
-$$
+```text
+1 second:
++1.311 percentage points
 
-and
+5 seconds:
++1.615 percentage points
+```
 
-$$
-\Delta R^2_{5s}
-\approx
-1.61
-\text{ percentage points}.
-$$
+A secondary block-bootstrap analysis used:
 
-The associated block-bootstrap procedure used 2,000 repetitions with 5-second blocks.
+```text
+2,000 repetitions
+5-second blocks
+```
 
-Because the primary study contains only three independent captures, the bootstrap probabilities are treated as supportive uncertainty analysis rather than definitive population-level significance tests.
+The bootstrap generally favored Hawkes pressure.
+
+However, the primary study contains only three independent capture episodes. Bootstrap probabilities are therefore treated as supportive uncertainty analysis rather than definitive population-level significance tests.
 
 ---
 
-# Independent Python / MATLAB Replication
+# State-Conditioned Analysis
 
-The core Hawkes estimator was implemented independently in Python and MATLAB.
+The project also examined whether the Hawkes-pressure relationship changes across queue-imbalance regimes.
+
+The results were heterogeneous across captures and horizons.
+
+This analysis is treated as **secondary evidence** and is not the main empirical claim.
+
+---
+
+# Python ↔ MATLAB Replication
+
+The core Hawkes estimator was independently implemented in Python and MATLAB.
 
 Both implementations use:
 
-- the same raw captures;
-- the same reconstructed book timeline;
-- the same 100 ms grid;
-- the same same-side exponential Hawkes model;
-- the same binned likelihood;
-- the same stationarity restriction.
+```text
+same captures
+same reconstructed timeline
+same exact 100-ms grid
+same Hawkes specification
+same binned likelihood
+same stationarity constraint
+```
 
-For Capture 04, Python reports:
+For `capture_04`, the final Python verification gives:
 
-$$
-\mu_B=3.3742947465
-$$
+```text
+mu_buy          3.3742947465
+mu_sell         2.8201315938
+beta            1.0316796766
+branching_buy   0.5820871370
+branching_sell  0.4165226456
+negative_loglik 28784.4782933165
+```
 
-$$
-\mu_S=2.8201315938
-$$
+The MATLAB implementation reproduces the reported parameters to approximately `1e-7` or better.
 
-$$
-\beta=1.0316796766
-$$
+The likelihood matches to numerical precision.
 
-$$
-n_B=0.5820871370
-$$
-
-$$
-n_S=0.4165226456.
-$$
-
-The corresponding negative log-likelihood is:
-
-$$
-28784.4782933165.
-$$
-
-MATLAB reproduces these parameters to approximately $10^{-7}$ or better and matches the likelihood to numerical precision.
-
-This independent implementation check substantially strengthens reproducibility of the core estimator.
+This is an **implementation-level reproducibility check**, not an independent replication of the entire research study.
 
 ---
 
-# Visual Results
+# Figures
 
-## Trade-arrival clustering
+Final figures are generated under:
 
-![Trade-arrival distribution](figures/figure_01_event_clustering.png)
+```text
+figures/
+```
 
-![Fano factor by capture](figures/figure_01b_fano_by_capture.png)
+The repository contains PNG and PDF versions for:
 
-## Hawkes pressure response
+| Figure | Analysis |
+|---|---|
+| Figure 1 | Trade-arrival clustering vs Poisson |
+| Figure 1b | Fano factor by capture |
+| Figure 2 | Hawkes pressure vs future return |
+| Figure 2b | Pressure response by capture |
+| Figure 3 | Leave-one-capture-out OOS R² |
+| Figure 3b | OOS prediction / return correlation |
+| Figure 3c | Hawkes performance by held-out capture |
+| Figure 4 | Temporal-resolution OOS R² |
+| Figure 4b | Temporal-resolution correlation |
+| Figure 4c | Temporal-resolution RMSE |
 
-![Hawkes pressure response](figures/figure_02_hawkes_pressure_response.png)
+---
 
-![Hawkes pressure by capture](figures/figure_02b_hawkes_pressure_by_capture.png)
+# Results Package
 
-## Out-of-sample prediction
+Final CSV tables:
 
-![OOS R2 comparison](figures/figure_03_oos_r2_comparison.png)
+```text
+results/table_01_hawkes_parameters.csv
+results/table_02_leave_one_capture_out.csv
+results/table_03_statistical_comparison.csv
+results/table_04_resolution_sensitivity.csv
+```
 
-![OOS correlation comparison](figures/figure_03b_oos_correlation.png)
+LaTeX table exports:
 
-![Hawkes performance by capture](figures/figure_03c_hawkes_by_capture.png)
+```text
+results/table_01_hawkes_parameters.tex
+results/table_02_leave_one_capture_out.tex
+results/table_03_statistical_comparison.tex
+results/table_04_resolution_sensitivity.tex
+```
 
-## Temporal resolution
+Final summary:
 
-![Resolution OOS R2](figures/figure_04_resolution_r2.png)
+```text
+results/final_results_summary.txt
+```
 
-![Resolution correlation](figures/figure_04b_resolution_correlation.png)
+Major processed datasets:
 
-![Resolution RMSE](figures/figure_04c_resolution_rmse.png)
+```text
+data/processed/all_capture_book_states.parquet
+data/processed/all_capture_trade_events.parquet
+```
 
 ---
 
@@ -549,6 +665,7 @@ hawkes-ofi-market-microstructure/
 │       ├── leave_one_capture_out.csv
 │       ├── final_statistical_test.csv
 │       ├── hawkes_resolution_prediction.csv
+│       ├── bootstrap_oos_results.csv
 │       └── ...
 │
 ├── src/
@@ -557,6 +674,7 @@ hawkes-ofi-market-microstructure/
 │
 ├── experiments/
 │   ├── build_multi_capture_trades.py
+│   ├── process_all_captures.py
 │   ├── leave_one_capture_out.py
 │   ├── final_statistical_test.py
 │   ├── build_final_results_tables.py
@@ -571,18 +689,13 @@ hawkes-ofi-market-microstructure/
 │   └── fit_hawkes_bivariate.m
 │
 ├── figures/
-│   ├── figure_01_*
-│   ├── figure_02_*
-│   ├── figure_03_*
-│   └── figure_04_*
+│   └── final PNG / PDF figures
 │
 ├── results/
-│   ├── table_01_hawkes_parameters.*
-│   ├── table_02_leave_one_capture_out.*
-│   ├── table_03_statistical_comparison.*
-│   ├── table_04_resolution_sensitivity.*
-│   └── final_results_summary.txt
+│   └── final CSV / LaTeX / summary outputs
 │
+├── requirements.txt
+├── .gitignore
 └── README.md
 ```
 
@@ -590,51 +703,67 @@ hawkes-ofi-market-microstructure/
 
 # Reproducibility
 
-## Python environment
+## Python
 
-Use the project's virtual environment:
+Run experiments through the project virtual environment:
 
 ```powershell
 .\.venv\Scripts\python.exe
 ```
 
-## Rebuild processed trade events
+Build trade-event data:
 
 ```powershell
 .\.venv\Scripts\python.exe experiments\build_multi_capture_trades.py
 ```
 
-## Leave-one-capture-out evaluation
+Process captures:
+
+```powershell
+.\.venv\Scripts\python.exe experiments\process_all_captures.py
+```
+
+Run leave-one-capture-out evaluation:
 
 ```powershell
 .\.venv\Scripts\python.exe experiments\leave_one_capture_out.py
 ```
 
-## Statistical comparison
+Run the final statistical comparison:
 
 ```powershell
 .\.venv\Scripts\python.exe experiments\final_statistical_test.py
 ```
 
-## Generate model-comparison figures
+Build final result tables:
+
+```powershell
+.\.venv\Scripts\python.exe experiments\build_final_results_tables.py
+```
+
+Generate model-comparison figures:
 
 ```powershell
 .\.venv\Scripts\python.exe experiments\figure_oos_model_comparison.py
 ```
 
-## Generate resolution figures
+Generate temporal-resolution figures:
 
 ```powershell
 .\.venv\Scripts\python.exe experiments\figure_resolution_robustness.py
 ```
 
-## Regenerate final figure set
+Regenerate the complete final figure set:
 
 ```powershell
 .\.venv\Scripts\python.exe experiments\finalize_figures.py
 ```
 
-## MATLAB replication
+---
+
+## MATLAB
+
+The MATLAB replication can be run with:
 
 ```powershell
 matlab -batch "cd('C:\Users\annoy\hawkes-ofi-market-microstructure'); addpath('matlab'); results=fit_hawkes_bivariate();"
@@ -648,154 +777,266 @@ The current evidence supports a narrow conclusion:
 
 > **Temporal clustering in BTCUSDT trade arrivals contains short-horizon predictive information that is not fully captured by a simple contemporaneous L1 OFI measure in the observed independent capture episodes.**
 
-The evidence does **not** establish:
+The result is interesting because the primary model is simple, interpretable, and tested on held-out market episodes.
+
+The result is also limited.
+
+The current study does **not** establish:
 
 - a universally profitable trading strategy;
-- stable performance across all BTCUSDT regimes;
-- profitability after transaction costs;
-- optimality of the primary Hawkes specification;
-- broad population-level statistical significance.
-
-The appropriate interpretation is a controlled market-microstructure result with explicit cross-capture validation.
+- guaranteed alpha;
+- causal prediction;
+- stable performance across every BTCUSDT regime;
+- optimality of the same-side Hawkes specification;
+- profitability after fees and execution costs;
+- broad population-level significance.
 
 ---
 
 # Limitations
 
-### Small number of independent captures
+## Three independent episodes
 
-The dataset contains many event observations but only three independent ten-minute episodes. Effective statistical power is therefore much smaller than the raw observation count.
+The study contains 39,442 trade events but only three independent ten-minute market captures.
 
-### Short observation windows
+The raw event count should not be interpreted as 39,442 independent observations.
 
-The captures are short and do not yet span full trading days, multiple days, or a broad set of volatility regimes.
+## Short observation windows
 
-### Restricted Hawkes specification
+The total capture duration is approximately thirty minutes.
 
-The primary model uses same-side excitation with a common exponential decay parameter. Cross-excitation and additional event types are left for future work.
+The study therefore cannot establish long-run stability.
 
-### No execution model
+## Restricted Hawkes model
 
-The prediction experiments use mid-price returns. They do not account for fees, spread crossing, latency, queue position, market impact, or inventory risk.
+The primary specification uses:
 
-### Model-selection uncertainty
+- same-side excitation;
+- one common decay parameter;
+- no buy-to-sell excitation;
+- no sell-to-buy excitation.
 
-The project does not attempt to exhaustively compare every modern microstructure forecasting model. The emphasis is on a clearly specified and reproducible Hawkes-vs-OFI comparison.
+## No execution model
+
+The analysis predicts mid-price returns.
+
+It does not yet include:
+
+- trading fees;
+- spread crossing;
+- slippage;
+- latency;
+- queue position;
+- market impact;
+- inventory constraints.
+
+## Limited model comparison
+
+The research is focused on the interpretable Hawkes-vs-OFI question rather than an exhaustive comparison of every modern high-frequency forecasting model.
 
 ---
 
-# Why This Project Matters
+# Why This Project Is Interesting
 
-The project connects three important ideas in high-frequency finance:
+The project connects two different views of market microstructure.
+
+### Order-book view
 
 ```text
-Order-flow state
-      +
-Event-time dynamics
-      ↓
-Conditional order-arrival intensity
-      ↓
-Signed Hawkes pressure
-      ↓
-Short-horizon price formation
+What is the current imbalance
+in displayed liquidity?
 ```
 
-The key modeling distinction is:
+### Event-time view
 
 ```text
-OFI
-= "What is happening to displayed order-flow pressure now?"
+How does the history of arrivals
+change the conditional intensity
+of future buy/sell events?
+```
 
+The Hawkes pressure signal attempts to capture the second effect:
+
+```text
+trade history
+    ↓
+conditional intensity
+    ↓
+buy/sell intensity imbalance
+    ↓
 Hawkes pressure
-= "How does the history of event arrivals change the conditional
-   probability of further buy- or sell-side activity?"
+    ↓
+short-horizon return information
 ```
 
-The empirical results suggest that this temporal dimension contains useful incremental information in the observed BTCUSDT captures.
+The empirical question is whether this temporal dimension adds information beyond L1 OFI.
+
+In the current dataset, the answer is:
+
+```text
+Yes, modestly.
+```
 
 ---
 
-# Current Research Position
+# Research Position
 
-### Event clustering
+This work does not claim to be the first application of Hawkes processes to finance or cryptocurrency.
 
-$$
-\boxed{F_{\text{pooled}}=184.82}
-$$
+Related research already covers:
 
-against the Poisson benchmark:
+- Hawkes processes in financial microstructure;
+- order-flow imbalance and price impact;
+- Hawkes models for order-flow;
+- cryptocurrency limit-order-book dynamics;
+- Hawkes-based OFI forecasting.
 
-$$
-F_{\text{Poisson}}=1.
-$$
+The contribution here is deliberately narrower:
 
-### Primary OOS result
-
-$$
-\boxed{R^2_{1s}=1.12\%}
-$$
-
-$$
-\boxed{R^2_{5s}=1.62\%}
-$$
-
-for Hawkes pressure under three-capture leave-one-capture-out validation.
-
-### L1 OFI benchmark
-
-$$
-R^2_{1s}^{OFI}=-0.19\%
-$$
-
-$$
-R^2_{5s}^{OFI}=0.01\%.
-$$
-
-### Python / MATLAB
-
-$$
-\boxed{\text{Python}\approx\text{MATLAB}}
-$$
-
-for the same exact-grid Hawkes estimation problem.
+1. a parsimonious same-side Hawkes pressure statistic;
+2. direct comparison against L1 OFI;
+3. strict capture-level out-of-sample validation;
+4. temporal-resolution sensitivity;
+5. independent Python/MATLAB estimator replication.
 
 ---
 
 # Future Work
 
-The next research phase is to increase the number of **independent market episodes**.
+The most important next experiment is to increase the number of **independent market episodes**.
 
-Priority extensions:
+### Data expansion
 
-1. collect substantially more BTCUSDT captures;
-2. span multiple days and volatility regimes;
-3. test cross-exciting Hawkes specifications;
-4. incorporate cancellations and order-book events;
-5. compare event-time and book-state information jointly;
-6. perform inference across a much larger number of independent episodes;
-7. evaluate transaction-cost-aware economic performance;
-8. test whether Hawkes pressure remains robust across different liquidity conditions.
+- many more BTCUSDT captures;
+- multiple sessions;
+- multiple days;
+- different volatility regimes;
+- different liquidity regimes.
+
+### Model expansion
+
+- cross-exciting Hawkes processes;
+- cancellation events;
+- order submissions;
+- richer event-type systems;
+- deeper order-book features.
+
+### Statistical expansion
+
+- inference across many independent episodes;
+- regime-conditional analysis;
+- longer-horizon validation;
+- broader model comparison.
+
+### Economic expansion
+
+- transaction-cost modeling;
+- spread and slippage;
+- latency;
+- market impact;
+- execution simulation;
+- inventory-aware evaluation.
+
+The next research question is not simply:
+
+> Can the R² be made larger?
+
+It is:
+
+> **Does the Hawkes-pressure effect survive when the number of independent market regimes becomes substantially larger?**
+
+---
+
+# Key Numbers
+
+```text
+DATA
+39,442       total trade events
+18,002       reconstructed book states
+3            independent captures
+~1,800 s     total captured market time
+
+CLUSTERING
+184.82       pooled one-second Fano factor
+1.00         Poisson benchmark Fano factor
+
+PRIMARY OOS
+1.12%        mean Hawkes OOS R² at 1 s
+1.62%        mean Hawkes OOS R² at 5 s
+
+L1 OFI
+-0.19%       mean L1 OFI OOS R² at 1 s
+0.01%        mean L1 OFI OOS R² at 5 s
+
+CORRELATION
+0.122        mean Hawkes prediction correlation at 1 s
+0.161        mean Hawkes prediction correlation at 5 s
+
+PRESSURE RESPONSE
+≈0.68 bps    lowest-to-highest pressure response
+
+REPLICATION
+Python ≈ MATLAB
+```
+
+---
+
+# Project Philosophy
+
+```text
+Capture
+  ↓
+Validate
+  ↓
+Reconstruct
+  ↓
+Model
+  ↓
+Hold out
+  ↓
+Quantify uncertainty
+  ↓
+Replicate
+  ↓
+Interpret conservatively
+```
+
+The goal is not to maximize a backtest statistic.
+
+The goal is to determine whether a market-microstructure relationship survives:
+
+- data validation;
+- strict out-of-sample testing;
+- capture-level heterogeneity;
+- robustness analysis;
+- independent implementation.
+
+---
+
+# Status
+
+**Quant Project 1 — Empirical pipeline complete.**
+
+The current three-capture experiment is frozen as the baseline result.
+
+The next research phase is to collect substantially more independent market episodes and test whether the Hawkes-pressure relationship remains stable across broader market conditions.
 
 ---
 
 # References
 
-- Cont, R., Kukanov, A., & Stoikov, S. (2014). *The Price Impact of Order Book Events*. Journal of Financial Econometrics, 12(1), 47–88.
-- Bacry, E., Delattre, S., Hoffmann, M., & Muzy, J.-F. (2013). *Modelling microstructure noise with mutually exciting point processes*. Quantitative Finance, 13(1), 65–77.
-- Bacry, E., & Muzy, J.-F. (2014). *Hawkes model for price and trades high-frequency dynamics*. Quantitative Finance, 14(7), 1147–1166.
-- Bacry, E., Mastromatteo, I., & Muzy, J.-F. (2015). *Hawkes Processes in Finance*. Market Microstructure and Liquidity, 1(1), 1550005.
-- Anantha, A. N., & Jain, S. (2026). *Forecasting High Frequency Order Flow Imbalance using Hawkes Processes*. Computational Economics, 67(1), 279–312.
+- Hawkes, A. G. (1971). *Spectra of some self-exciting and mutually exciting point processes*. Biometrika.
+- Bacry, E., Delattre, S., Hoffmann, M., & Muzy, J.-F. (2013). *Modelling microstructure noise with mutually exciting point processes*. Quantitative Finance.
+- Bacry, E., & Muzy, J.-F. (2014). *Hawkes model for price and trades high-frequency dynamics*. Quantitative Finance.
+- Bacry, E., Mastromatteo, I., & Muzy, J.-F. (2015). *Hawkes Processes in Finance*. Market Microstructure and Liquidity.
+- Cont, R., Kukanov, A., & Stoikov, S. (2014). *The Price Impact of Order Book Events*. Journal of Financial Econometrics.
+- Wu, P., Rambaldi, M., Muzy, J.-F., & Bacry, E. (2019). *Queue-reactive Hawkes models for the order flow*.
+- Anantha, A. N., & Jain, S. (2026). *Forecasting High Frequency Order Flow Imbalance using Hawkes Processes*. Computational Economics.
 - Raffaelli, D., Cestari, R. G., Marazzina, D., & Formentin, S. (2026). *Forecasting Bitcoin price movements using multivariate Hawkes processes and limit order book data*. Decisions in Economics and Finance.
 
 ---
 
-# License
-
-Add the project's chosen license before public release.
-
----
-
-# Disclaimer
+## Disclaimer
 
 This repository is for research and educational purposes.
 
